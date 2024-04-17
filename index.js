@@ -153,58 +153,57 @@ const Users = mongoose.model('Users',{
 })
 
 //Creating Endpoint for registering the users
-app.post('/signup',async (req,res)=>{
-
-  let check = await Users.findOne({email:req.body.email});
-  if(check){
-    return res.status(400).json({success:false,errors:"existing user found with same email address"})
+// Login endpoint
+app.post('/login', async (req, res) => {
+  try {
+      const user = await Users.findOne({ email: req.body.email });
+      if (!user) {
+          return res.json({ success: false, error: "Wrong Email Id" });
+      }
+      const passwordMatch = req.body.password === user.password;
+      if (!passwordMatch) {
+          return res.json({ success: false, error: "Wrong Password" });
+      }
+      const token = jwt.sign({ user: { id: user.id } }, 'secret_ecom');
+      res.json({ success: true, token });
+  } catch (error) {
+      console.error(error);
+      res.json({ success: false, error: "Internal Server Error" });
   }
-  let cart = {};
-  for (let i = 0; i < 300; i++) {
-   cart[i]=0;
-    
+});
+
+// Signup endpoint
+app.post('/signup', async (req, res) => {
+  try {
+      const existingUser = await Users.findOne({ email: req.body.email });
+      if (existingUser) {
+          return res.json({ success: false, error: "existing user found with same email address" });
+      }
+      const newUser = new Users({
+          name: req.body.username,
+          email: req.body.email,
+          password: req.body.password,
+          cartData: { ...Array.from({ length: 300 }, (_, i) => [i, 0]) }
+      });
+      await newUser.save();
+      const token = jwt.sign({ user: { id: newUser.id } }, 'secret_ecom');
+      res.json({ success: true, token });
+  } catch (error) {
+      console.error(error);
+      res.json({ success: false, error: "Internal Server Error" });
   }
-    const user = new Users({
-      name:req.body.username,
-      email:req.body.email,
-      password:req.body.password,
-      cartData:cart,
-    })
-     
-    await user.save();
+});
 
-    const data = {
-      user:{
-        id:user.id
-      }
-    }
-    const token = jwt.sign(data,'secret_ecom');
-    res.json({success:true,token})
+
+//creating endpoint for newcollection data
+/*
+app.get('/newcollections',async (req,res)=>{
+    let products = await Product .find({});
+    let newcollection = products.slice(1).slice(-8);
+    console.log("NewCollection Fetched");
+    res.send(newcollection);
 })
-
-//Creating endpoint for user login
-app.post('/login',async (req,res)=>{
-    let user = await Users.findOne({email:req.body.email});
-    if(user){
-      const passCompare = req.body.password === user.password;
-      if(passCompare){
-        const data ={
-          user:{
-            id:user.id
-          }
-        }
-        const token = jwt.sign(data,'secret_ecom');
-        res.json({success:true,token});
-      }
-
-      else{
-        res.json({success:false,error:"Wrong Password"});
-      }
-    }
-    else{
-         res.json({success:false,errors:"Wrong Email Id"})
-    }
-})
+*/
 
 app.listen(port, (error) => {
     if (!error) {
